@@ -1,0 +1,101 @@
+"mm", format: "a4", orientation: orient },
+        html2canvas: { scale: 2, scrollY: 0 }
+      })
+      .from(pdfArea)
+      .save();
+
+    // Restore the canvas for next time
+    pieChartContainer.innerHTML = `<canvas id="pdfPieChart" width="250" height="250"></canvas>`;
+    pieChart = new Chart(document.getElementById("pdfPieChart"), pieChart.data, pieChart.options);
+
+    pdfArea.style.display = "none";
+  }
+
+  // Save date on change and reload data
+  dateInput.addEventListener("change", () => {
+    localStorage.setItem("date", dateInput.value);
+    attendance = JSON.parse(localStorage.getItem("att_" + dateInput.value)) || [];
+    render();
+    loadAll();
+  });
+// ================= MONTHLY SUMMARY (FINAL – NO DUPLICATE) =================
+
+// Monthly Summary ke liye employee dropdown bharna
+function loadMonthlyEmp() {
+  const msEmp = document.getElementById("msEmp");
+  msEmp.innerHTML = "";
+  masters.forEach(m => {
+    msEmp.innerHTML += `<option value="${m.n}">${m.n}</option>`;
+  });
+}
+loadMonthlyEmp(); // Page load pe call karen
+
+// Monthly summary render karne wala function
+function renderMonthlySummary() {
+  const empName = document.getElementById("msEmp").value;
+  const month = document.getElementById("msMonth").value;
+  if (!month) return alert("Kripya month select karein");
+
+  // Status counts initialize karo
+  const counts = { P: 0, A: 0, R: 0, H: 0, PR: 0, PH: 0 };
+
+  // localStorage me se selected month ke attendance data ko count karo
+  for (let key in localStorage) {
+    if (key.startsWith("att_") && key.includes(month)) {
+      const dayData = JSON.parse(localStorage.getItem(key)) || [];
+      dayData.forEach(a => {
+        if (a.n === empName) {
+          counts[a.s] = (counts[a.s] || 0) + 1;
+        }
+      });
+    }
+  }
+
+  // Header update karo
+  const msHeader = document.getElementById("msHeader");
+  const empDesig = masters.find(m => m.n === empName)?.d || "";
+  msHeader.innerText = `${empName} | ${empDesig} | ${month}`;
+
+  // Table me data set karo
+  const msBody = document.getElementById("msBody");
+  msBody.innerHTML = "";
+  for (const status in counts) {
+    msBody.innerHTML += `<tr><td>${status}</td><td>${counts[status]}</td></tr>`;
+  }
+}
+
+// Monthly summary ka PDF download karne wala function
+async function downloadMonthlyPDF() {
+  const empName = document.getElementById("msEmp").value;
+  const month = document.getElementById("msMonth").value;
+  if (!month) return alert("Kripya month select karein");
+
+  // PDF headers set karo
+  document.getElementById("mpCompany").innerText = localStorage.getItem("company") || "COMPANY";
+  document.getElementById("mpEmp").innerText = empName;
+  document.getElementById("mpMonth").innerText = "Month: " + month;
+
+  // Monthly summary table ka body copy karo PDF table me
+  document.getElementById("mpBody").innerHTML = document.getElementById("msBody").innerHTML;
+
+  // PDF area visible karo
+  const area = document.getElementById("monthlyPdfArea");
+  area.style.display = "block";
+
+  // UI update ke liye thoda wait karo
+  await new Promise(r => setTimeout(r, 700));
+
+  // PDF generate karo
+  await html2pdf().set({
+    margin: 10,
+    filename: `Monthly_Summary_${empName}_${month}.pdf`,
+    jsPDF: { unit: "mm", format: "a4" },
+    html2canvas: { scale: 2, scrollY: 0 }
+  }).from(area).save();
+
+  // PDF area wapas hide kar do
+  area.style.display = "none";
+}
+</script>
+</body>
+</html>
